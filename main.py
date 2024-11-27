@@ -31,7 +31,7 @@ def timing_decorator(func):
         result = func(*args, **kwargs)
         end_time = time.time()
         elapsed_time = end_time - start_time
-        print(f"Function {func.__name__} took {elapsed_time:.6f} seconds to execute.")
+        print(f"Функция {func.__name__} заняла {elapsed_time:.6f} секунд для выполнения.")
         return result
 
     return wrapper
@@ -59,4 +59,4 @@ areas = map(lambda room: room["length"] * room["width"], rooms)
 
 total_area = reduce(lambda x, y: x + y, areas)
 
-print(f"Total apartment area: {total_area} square units.")
+print(f"Площадь: {total_area} square units.")
