@@ -59,4 +59,4 @@ areas = map(lambda room: room["length"] * room["width"], rooms)
 
 total_area = reduce(lambda x, y: x + y, areas)
 
-print(f"Площадь: {total_area} square units.")
+print(f"Площадь: {total_area} квадратных метров.")
