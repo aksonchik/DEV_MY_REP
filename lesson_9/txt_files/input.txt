@@ -1,0 +1,10 @@
+An assert is a "sanitary check". It
+can take an instruction as an argument and throw
+an exception if False is returned.
+Otherwise, the execution of the program will simply continue on.
+assert can be provided with multiple arguments
+The assert statement allows the programmer to insert
+statements into the code that automatically terminate
+execution if the statement is false. In the
+example above, the statement verifies that the final price will not
+become negative and will not exceed the initial one.
