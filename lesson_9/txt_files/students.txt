@@ -1,0 +1,9 @@
+Ivanov Ivan 2
+
+Petrova Anna 4
+
+Sidorov Petr 2.5
+
+Smith John 3.0
+
+Nguyen Lan 2.8
