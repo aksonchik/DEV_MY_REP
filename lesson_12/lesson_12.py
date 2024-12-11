@@ -2,7 +2,6 @@
 
 import json
 import random
-from datetime import datetime, timedelta
 
 
 class Book:
@@ -22,7 +21,7 @@ class Book:
         if self.is_available:
             self.is_available = False
             self.borrowed_by = user
-            self.due_date = datetime.now() + timedelta(days=14)
+            self.due_date = "14 дней с момента взятия"
         else:
             print("Книга уже взята.")
 
@@ -52,23 +51,42 @@ class Library:
         elif by == 'year':
             self.books = [book for book in self.books if str(book.year) != str(identifier)]
 
+    def find_books_by_author_and_title(self, author, title):
+        return next((book for book in self.books if book.author.lower() == author.lower() and book.title.lower() == title.lower()), None)
+
     def find_books_by_author(self, author):
         return [book for book in self.books if book.author.lower() == author.lower()]
 
     def list_available_books(self):
         return [book for book in self.books if book.is_available]
 
-    def borrow_book(self, isbn, user):
-        for book in self.books:
-            if book.isbn == isbn:
+    def borrow_book(self, identifier, user, by='isbn'):
+        if by == 'isbn':
+            for book in self.books:
+                if book.isbn == identifier:
+                    book.borrow(user)
+                    break
+        elif by == 'author_title':
+            author, title = identifier
+            book = self.find_books_by_author_and_title(author, title)
+            if book:
                 book.borrow(user)
-                break
+            else:
+                print(f"Книга '{title}' автора {author} не найдена или уже взята.")
 
-    def return_book(self, isbn):
-        for book in self.books:
-            if book.isbn == isbn:
+    def return_book(self, identifier, by='isbn'):
+        if by == 'isbn':
+            for book in self.books:
+                if book.isbn == identifier:
+                    book.return_book()
+                    break
+        elif by == 'author_title':
+            author, title = identifier
+            book = self.find_books_by_author_and_title(author, title)
+            if book:
                 book.return_book()
-                break
+            else:
+                print(f"Книга '{title}' автора {author} не найдена.")
 
     def save_to_file(self, filename):
         with open(filename, 'w') as file:
@@ -82,7 +100,7 @@ class Library:
                 for book, d in zip(self.books, data):
                     book.is_available = d['is_available']
                     book.borrowed_by = d['borrowed_by']
-                    book.due_date = datetime.fromisoformat(d['due_date']) if d['due_date'] else None
+                    book.due_date = d['due_date']
         except FileNotFoundError:
             print(f"Файл {filename} не найден. Начинаем с пустой библиотеки.")
         except json.JSONDecodeError:
@@ -148,15 +166,32 @@ def main():
                 print(f"Книг автора {author} не найдено.")
 
         elif choice == '5':
-            isbn = input("Введите ISBN книги, которую хотите взять: ")
-            user = input("Введите ваше имя: ")
-            library.borrow_book(isbn, user)
-            print(f"Книга с ISBN {isbn} взята пользователем {user}.")
+            print("Взять книгу по:")
+            print("1. ISBN")
+            print("2. Автору и названию")
+            borrow_choice = input("Выберите параметр: ")
+            if borrow_choice == '1':
+                isbn = input("Введите ISBN книги: ")
+                user = input("Введите ваше имя: ")
+                library.borrow_book(isbn, user, by='isbn')
+            elif borrow_choice == '2':
+                author = input("Введите имя автора: ")
+                title = input("Введите название книги: ")
+                user = input("Введите ваше имя: ")
+                library.borrow_book((author, title), user, by='author_title')
 
         elif choice == '6':
-            isbn = input("Введите ISBN книги, которую хотите вернуть: ")
-            library.return_book(isbn)
-            print(f"Книга с ISBN {isbn} возвращена.")
+            print("Вернуть книгу по:")
+            print("1. ISBN")
+            print("2. Автору и названию")
+            return_choice = input("Выберите параметр: ")
+            if return_choice == '1':
+                isbn = input("Введите ISBN книги: ")
+                library.return_book(isbn, by='isbn')
+            elif return_choice == '2':
+                author = input("Введите имя автора: ")
+                title = input("Введите название книги: ")
+                library.return_book((author, title), by='author_title')
 
         elif choice == '7':
             library.save_to_file("library.json")
