@@ -1,0 +1,5 @@
+
+python
+Copy code
+for line in file_reader("example.txt"):
+    print(line.strip())
