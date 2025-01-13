@@ -233,4 +233,4 @@ agent_commission = calculate_agent_commission(lease1.id)
 find_users_without_payments()
 find_properties_rented_more_than_3_times()
 
-# Добавляем пустую строку в конце файла для соответствия PEP 8
+# Пустая строка в конце файла для соответствия PEP 8
