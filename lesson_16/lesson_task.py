@@ -32,13 +32,13 @@ class User(Base):
 
 
 # Модель для сущности "Объект недвижимости"
-class RealEstate(Base):  # Переименовано с `Property` на `RealEstate`
+class Property(Base):
     __tablename__ = 'properties'  # Название таблицы
     id = Column(Integer, primary_key=True)  # Уникальный идентификатор
     address = Column(String, nullable=False)  # Адрес недвижимости
     type = Column(Enum(PropertyType), nullable=False)  # Тип недвижимости (жилая/коммерческая)
     rent_price = Column(Float, nullable=False)  # Стоимость аренды
-    leases = relationship("Lease", back_populates="real_estate")  # Связь с договорами аренды
+    leases = relationship("Lease", back_populates="property")  # Связь с договорами аренды
 
 
 # Модель для сущности "Договор аренды"
@@ -49,10 +49,10 @@ class Lease(Base):
     end_date = Column(Date, nullable=False)  # Дата окончания аренды
     status = Column(Enum(LeaseStatus), nullable=False, default=LeaseStatus.ACTIVE)  # Статус договора
     tenant_id = Column(Integer, ForeignKey('users.id'), nullable=False)  # Связь с арендатором
-    real_estate_id = Column(Integer, ForeignKey('properties.id'), nullable=False)  # Связь с объектом недвижимости
+    property_id = Column(Integer, ForeignKey('properties.id'), nullable=False)  # Связь с объектом недвижимости
     agent_id = Column(Integer, ForeignKey('agents.id'), nullable=True)  # Связь с агентом (опционально)
     tenant = relationship("User", back_populates="leases")  # Связь с пользователем
-    real_estate = relationship("RealEstate", back_populates="leases")  # Связь с объектом недвижимости
+    property = relationship("Property", back_populates="leases")  # Связь с объектом недвижимости
     agent = relationship("Agent", back_populates="leases")  # Связь с агентом
     payments = relationship("Payment", back_populates="lease")  # Связь с платежами
 
@@ -113,17 +113,19 @@ add_user_if_not_exists("John Doe", "john@example.com")
 add_user_if_not_exists("Jane Smith", "jane@example.com")
 
 # Добавляем объекты недвижимости
-real_estate1 = RealEstate(address="123 Main St", type=PropertyType.RESIDENTIAL, rent_price=1000)
-real_estate2 = RealEstate(address="456 Elm St", type=PropertyType.COMMERCIAL, rent_price=2000)
-session.add_all([real_estate1, real_estate2])
+property1 = Property(address="123 Main St", type=PropertyType.RESIDENTIAL, rent_price=1000)
+property2 = Property(address="456 Elm St", type=PropertyType.COMMERCIAL, rent_price=2000)
+session.add_all([property1, property2])
 session.commit()
 
 # Добавляем договоры аренды
 user1 = session.query(User).filter_by(email="john@example.com").first()
 user2 = session.query(User).filter_by(email="jane@example.com").first()
 
-lease1 = Lease(start_date=date(2023, 10, 1), end_date=date(2024, 9, 30), tenant=user1, real_estate=real_estate1)
-lease2 = Lease(start_date=date(2023, 11, 1), end_date=date(2024, 10, 31), tenant=user2, real_estate=real_estate2)
+lease1 = Lease(start_date=date(2023, 10, 1),
+               end_date=date(2024, 9, 30), tenant=user1, property=property1)
+lease2 = Lease(start_date=date(2023, 11, 1),
+               end_date=date(2024, 10, 31), tenant=user2, property=property2)
 session.add_all([lease1, lease2])
 session.commit()
 
@@ -175,19 +177,19 @@ def find_users_without_payments():
 
 
 # Функция для поиска объектов недвижимости, арендованных более 3 раз
-def find_real_estates_rented_more_than_3_times():
+def find_properties_rented_more_than_3_times():
     # Используем глобальную сессию
-    real_estates_rented_more_than_3_times = session.query(RealEstate).join(Lease).group_by(RealEstate.id).having(
+    properties_rented_more_than_3_times = session.query(Property).join(Lease).group_by(Property.id).having(
         func.count(Lease.id) > 3).all()
-    for real_estate in real_estates_rented_more_than_3_times:
-        print(f"Real estate rented more than 3 times: {real_estate.address}")
+    for property in properties_rented_more_than_3_times:
+        print(f"Property rented more than 3 times: {property.address}")
 
 
 # Функция для создания договора и внесения первого платежа в одной транзакции
-def create_lease_and_make_payment(user_id, real_estate_id, start_date, end_date, amount, payment_date):
+def create_lease_and_make_payment(user_id, property_id, start_date, end_date, amount, payment_date):
     try:
         # Используем глобальную сессию
-        lease = Lease(start_date=start_date, end_date=end_date, tenant_id=user_id, real_estate_id=real_estate_id)
+        lease = Lease(start_date=start_date, end_date=end_date, tenant_id=user_id, property_id=property_id)
         session.add(lease)
         session.flush()  # Сохраняем договор, чтобы получить его ID
 
@@ -223,12 +225,12 @@ def calculate_agent_commission(lease_id):
 # Пример использования функций
 make_payment(lease1.id, 1000, date(2023, 10, 1))
 complete_lease(lease1.id)
-create_lease_and_make_payment(user1.id, real_estate1.id, date(2023, 12, 1),
+create_lease_and_make_payment(user1.id, property1.id, date(2023, 12, 1),
                               date(2024, 11, 30), 1000, date(2023, 12, 1))
 agent_commission = calculate_agent_commission(lease1.id)
 
 # Выполняем сложные запросы
 find_users_without_payments()
-find_real_estates_rented_more_than_3_times()
+find_properties_rented_more_than_3_times()
 
-# Добавляем пустую строку в конце файла для соответствия PEP 8
+# Пустая строка в конце файла для соответствия PEP 8
