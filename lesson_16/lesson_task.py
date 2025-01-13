@@ -1,236 +1,185 @@
-# -*- coding: utf-8 -*-
-
-from sqlalchemy import create_engine, Column, Integer, String, Float, Date, ForeignKey, Enum, func
-from sqlalchemy.orm import relationship, sessionmaker, declarative_base
-from sqlalchemy.exc import IntegrityError
+# Импорт необходимых библиотек
+from flask import Flask, request, jsonify
+from sqlalchemy import create_engine, Column, Integer, String, Float, Date, ForeignKey, Enum
+from sqlalchemy.orm import sessionmaker, declarative_base, relationship
 from datetime import date
 from enum import Enum as PyEnum
 
-# Создаем базовый класс для декларативного определения моделей
+# Создание Flask-приложения
+app = Flask(__name__)
+
+# Настройки базы данных
+engine = create_engine('sqlite:///real_estate.db')
+Session = sessionmaker(bind=engine)
+session = Session()
+
+# Базовый класс для декларативного определения моделей
 Base = declarative_base()
 
 
-# Определяем перечисление для типа недвижимости
+# Перечисления и модели
+
+# Перечисление для типа недвижимости
 class PropertyType(PyEnum):
-    RESIDENTIAL = "residential"  # Жилая недвижимость
-    COMMERCIAL = "commercial"  # Коммерческая недвижимость
+    RESIDENTIAL = "residential"
+    COMMERCIAL = "commercial"
 
 
-# Определяем перечисление для статуса договора аренды
+# Перечисление для статуса договора аренды
 class LeaseStatus(PyEnum):
-    ACTIVE = "active"  # Активный договор
-    COMPLETED = "completed"  # Завершенный договор
+    ACTIVE = "active"
+    COMPLETED = "completed"
 
 
 # Модель для сущности "Пользователь"
 class User(Base):
-    __tablename__ = 'users'  # Название таблицы в базе данных
-    id = Column(Integer, primary_key=True)  # Уникальный идентификатор
-    name = Column(String, nullable=False)  # Имя пользователя
-    email = Column(String, unique=True, nullable=False)  # Электронная почта (уникальная)
-    leases = relationship("Lease", back_populates="tenant")  # Связь с договорами аренды
+    __tablename__ = 'users'
+    id = Column(Integer, primary_key=True)  # Первичный ключ
+    name = Column(String, nullable=False)  # Имя пользователя (обязательное поле)
+    email = Column(String, unique=True, nullable=False)  # Электронная почта (уникальная и обязательная)
+    leases = relationship("Lease", back_populates="tenant")  # Связь с договорами аренды (один ко многим)
 
 
 # Модель для сущности "Объект недвижимости"
 class Property(Base):
-    __tablename__ = 'properties'  # Название таблицы
-    id = Column(Integer, primary_key=True)  # Уникальный идентификатор
-    address = Column(String, nullable=False)  # Адрес недвижимости
-    type = Column(Enum(PropertyType), nullable=False)  # Тип недвижимости (жилая/коммерческая)
-    rent_price = Column(Float, nullable=False)  # Стоимость аренды
-    leases = relationship("Lease", back_populates="property")  # Связь с договорами аренды
+    __tablename__ = 'properties'
+    id = Column(Integer, primary_key=True)
+    address = Column(String, nullable=False)  # Адрес недвижимости (обязательное поле)
+    type = Column(Enum(PropertyType), nullable=False)  # Тип недвижимости
+    rent_price = Column(Float, nullable=False)  # Стоимость аренды (обязательное поле)
+    leases = relationship("Lease", back_populates="property")  # Связь с договорами аренды (один ко многим)
 
 
 # Модель для сущности "Договор аренды"
 class Lease(Base):
-    __tablename__ = 'leases'  # Название таблицы
-    id = Column(Integer, primary_key=True)  # Уникальный идентификатор
-    start_date = Column(Date, nullable=False)  # Дата начала аренды
-    end_date = Column(Date, nullable=False)  # Дата окончания аренды
+    __tablename__ = 'leases'
+    id = Column(Integer, primary_key=True)
+    start_date = Column(Date, nullable=False)  # Дата начала аренды (обязательное поле)
+    end_date = Column(Date, nullable=False)  # Дата окончания аренды (обязательное поле)
     status = Column(Enum(LeaseStatus), nullable=False, default=LeaseStatus.ACTIVE)  # Статус договора
-    tenant_id = Column(Integer, ForeignKey('users.id'), nullable=False)  # Связь с арендатором
-    property_id = Column(Integer, ForeignKey('properties.id'), nullable=False)  # Связь с объектом недвижимости
+    tenant_id = Column(Integer, ForeignKey('users.id'), nullable=False)  # Связь с арендатором (внешний ключ)
+    property_id = Column(Integer, ForeignKey('properties.id'), nullable=False)  # с объектом недвижимости (внешний ключ)
     agent_id = Column(Integer, ForeignKey('agents.id'), nullable=True)  # Связь с агентом (опционально)
-    tenant = relationship("User", back_populates="leases")  # Связь с пользователем
+    tenant = relationship("User", back_populates="leases")  # Связь с арендатором
     property = relationship("Property", back_populates="leases")  # Связь с объектом недвижимости
     agent = relationship("Agent", back_populates="leases")  # Связь с агентом
-    payments = relationship("Payment", back_populates="lease")  # Связь с платежами
+    payments = relationship("Payment", back_populates="lease")  # Связь с платежами (один ко многим)
 
 
 # Модель для сущности "Платёж"
 class Payment(Base):
-    __tablename__ = 'payments'  # Название таблицы
-    id = Column(Integer, primary_key=True)  # Уникальный идентификатор
-    amount = Column(Float, nullable=False)  # Сумма платежа
-    payment_date = Column(Date, nullable=False)  # Дата платежа
-    lease_id = Column(Integer, ForeignKey('leases.id'), nullable=False)  # Связь с договором аренды
-    lease = relationship("Lease", back_populates="payments")  # Связь с договором
+    __tablename__ = 'payments'
+    id = Column(Integer, primary_key=True)
+    amount = Column(Float, nullable=False)  # Сумма платежа (обязательное поле)
+    payment_date = Column(Date, nullable=False)  # Дата платежа (обязательное поле)
+    lease_id = Column(Integer, ForeignKey('leases.id'), nullable=False)  # Связь с договором аренды (внешний ключ)
+    lease = relationship("Lease", back_populates="payments")  # Связь с договором аренды
 
 
 # Модель для сущности "Агент"
 class Agent(Base):
-    __tablename__ = 'agents'  # Название таблицы
-    id = Column(Integer, primary_key=True)  # Уникальный идентификатор
-    name = Column(String, nullable=False)  # Имя агента
-    commission_rate = Column(Float, nullable=False)  # Процент комиссии
-    leases = relationship("Lease", back_populates="agent")  # Связь с договорами аренды
+    __tablename__ = 'agents'
+    id = Column(Integer, primary_key=True)
+    name = Column(String, nullable=False)  # Имя агента (обязательное поле)
+    commission_rate = Column(Float, nullable=False)  # Процент комиссии (обязательное поле)
+    leases = relationship("Lease", back_populates="agent")  # Связь с договорами аренды (один ко многим)
 
 
-# Создаем подключение к базе данных SQLite
-engine = create_engine('sqlite:///real_estate.db')
+# Маршруты API
 
-# Очищаем базу данных перед началом работы (удаляем все таблицы)
-Base.metadata.drop_all(engine)
-
-# Создаем все таблицы в базе данных
-Base.metadata.create_all(engine)
-
-# Создаем фабрику сессий
-Session = sessionmaker(bind=engine)
-
-# Глобальная сессия (если нужна)
-session = Session()
+# Получить список всех пользователей
+@app.route('/users', methods=['GET'])
+def get_users():
+    users = session.query(User).all()  # Запрос всех пользователей из базы данных
+    return jsonify([{'id': user.id, 'name': user.name, 'email': user.email} for user in users])  # Возврат JSON-ответа
 
 
-# Функция для добавления пользователя с проверкой на существование
-def add_user_if_not_exists(name, email):
-    # Используем глобальную сессию
-    existing_user = session.query(User).filter_by(email=email).first()
-    if existing_user:
-        print(f"User with email {email} already exists.")
-        return existing_user
-    else:
-        # Создаем нового пользователя
-        user = User(name=name, email=email)
-        session.add(user)
-        session.commit()
-        print(f"User {name} added successfully.")
-        return user
-
-
-# Добавляем пользователей
-add_user_if_not_exists("John Doe", "john@example.com")
-add_user_if_not_exists("Jane Smith", "jane@example.com")
-
-# Добавляем объекты недвижимости
-property1 = Property(address="123 Main St", type=PropertyType.RESIDENTIAL, rent_price=1000)
-property2 = Property(address="456 Elm St", type=PropertyType.COMMERCIAL, rent_price=2000)
-session.add_all([property1, property2])
-session.commit()
-
-# Добавляем договоры аренды
-user1 = session.query(User).filter_by(email="john@example.com").first()
-user2 = session.query(User).filter_by(email="jane@example.com").first()
-
-lease1 = Lease(start_date=date(2023, 10, 1),
-               end_date=date(2024, 9, 30), tenant=user1, property=property1)
-lease2 = Lease(start_date=date(2023, 11, 1),
-               end_date=date(2024, 10, 31), tenant=user2, property=property2)
-session.add_all([lease1, lease2])
-session.commit()
-
-# Добавляем агента
-agent1 = Agent(name="Alice Brown", commission_rate=0.1)
-session.add(agent1)
-session.commit()
-
-
-# Функция для внесения платежа
-def make_payment(lease_id, amount, payment_date):
-    # Используем глобальную сессию
-    lease = session.get(Lease, lease_id)
-    if not lease:
-        raise ValueError("Lease not found")
-
-    # Создаем новый платеж
-    payment = Payment(amount=amount, payment_date=payment_date, lease=lease)
-    session.add(payment)
-
-    # Если это первый платеж, активируем договор
-    if not lease.payments:
-        lease.status = LeaseStatus.ACTIVE
-
-    # Сохраняем изменения в базе данных
+# Добавить нового пользователя
+@app.route('/users', methods=['POST'])
+def add_user():
+    data = request.json
+    new_user = User(name=data['name'], email=data['email'])  # Создание нового пользователя
+    session.add(new_user)
     session.commit()
-    print(f"Payment of {amount} made for lease {lease_id}.")
+    return jsonify({'id': new_user.id, 'name': new_user.name, 'email': new_user.email}), 201
 
 
-# Функция для завершения договора аренды
-def complete_lease(lease_id):
-    # Используем глобальную сессию
-    lease = session.get(Lease, lease_id)
-    if not lease:
-        raise ValueError("Lease not found")
+# Получить список всех объектов недвижимости
+@app.route('/properties', methods=['GET'])
+def get_properties():
+    properties = session.query(Property).all()
+    return jsonify(
+        [{'id': prop.id, 'address': prop.address, 'type': prop.type.value, 'rent_price': prop.rent_price} for prop in
+         properties])
 
-    # Меняем статус договора на "завершен"
-    lease.status = LeaseStatus.COMPLETED
+
+# Добавить новый объект недвижимости
+@app.route('/properties', methods=['POST'])
+def add_property():
+    data = request.json
+    new_property = Property(address=data['address'], type=PropertyType(data['type']),
+                            rent_price=data['rent_price'])  # Создание нового объекта недвижимости
+    session.add(new_property)
     session.commit()
-    print(f"Lease {lease_id} marked as completed.")
+    return jsonify({'id': new_property.id, 'address': new_property.address, 'type': new_property.type.value,
+                    'rent_price': new_property.rent_price}), 201
 
 
-# Функция для поиска пользователей без платежей
-def find_users_without_payments():
-    # Используем глобальную сессию
-    users_without_payments = session.query(User).outerjoin(Lease).outerjoin(Payment).filter(Payment.id.is_(None)).all()
-    for user in users_without_payments:
-        print(f"User without payments: {user.name}")
+# Получить список всех договоров аренды
+@app.route('/leases', methods=['GET'])
+def get_leases():
+    leases = session.query(Lease).all()
+    return jsonify([{'id': lease.id, 'start_date': lease.start_date.isoformat(), 'end_date': lease.end_date.isoformat(),
+                     'status': lease.status.value, 'tenant_id': lease.tenant_id, 'property_id': lease.property_id,
+                     'agent_id': lease.agent_id} for lease in leases])
 
 
-# Функция для поиска объектов недвижимости, арендованных более 3 раз
-def find_properties_rented_more_than_3_times():
-    # Используем глобальную сессию
-    properties_rented_more_than_3_times = session.query(Property).join(Lease).group_by(Property.id).having(
-        func.count(Lease.id) > 3).all()
-    for property in properties_rented_more_than_3_times:
-        print(f"Property rented more than 3 times: {property.address}")
+# Добавить новый договор аренды
+@app.route('/leases', methods=['POST'])
+def add_lease():
+    data = request.json
+    new_lease = Lease(start_date=date.fromisoformat(data['start_date']), end_date=date.fromisoformat(data['end_date']),
+                      tenant_id=data['tenant_id'], property_id=data['property_id'],
+                      agent_id=data.get('agent_id'))
+    session.add(new_lease)
+    session.commit()
+    return jsonify(
+        {'id': new_lease.id, 'start_date': new_lease.start_date.isoformat(), 'end_date': new_lease.end_date.isoformat(),
+         'status': new_lease.status.value, 'tenant_id': new_lease.tenant_id, 'property_id': new_lease.property_id,
+         'agent_id': new_lease.agent_id}), 201
 
 
-# Функция для создания договора и внесения первого платежа в одной транзакции
-def create_lease_and_make_payment(user_id, property_id, start_date, end_date, amount, payment_date):
-    try:
-        # Используем глобальную сессию
-        lease = Lease(start_date=start_date, end_date=end_date, tenant_id=user_id, property_id=property_id)
-        session.add(lease)
-        session.flush()  # Сохраняем договор, чтобы получить его ID
-
-        # Создаем платеж
-        payment = Payment(amount=amount, payment_date=payment_date, lease_id=lease.id)
-        session.add(payment)
-
-        # Сохраняем изменения в базе данных
-        session.commit()
-        print(f"Lease created and payment made successfully.")
-    except IntegrityError:
-        # В случае ошибки откатываем транзакцию
-        session.rollback()
-        raise
+# Добавить новый платёж
+@app.route('/payments', methods=['POST'])
+def add_payment():
+    data = request.json
+    new_payment = Payment(amount=data['amount'], payment_date=date.fromisoformat(data['payment_date']),
+                          lease_id=data['lease_id'])  # Создание нового платежа
+    session.add(new_payment)
+    session.commit()
+    return jsonify(
+        {'id': new_payment.id, 'amount': new_payment.amount, 'payment_date': new_payment.payment_date.isoformat(),
+         'lease_id': new_payment.lease_id}), 201
 
 
-# Функция для расчета комиссии агента
-def calculate_agent_commission(lease_id):
-    # Используем глобальную сессию
-    lease = session.get(Lease, lease_id)
-    if not lease or not lease.agent:
-        return 0
-
-    # Считаем общую сумму платежей по договору
-    total_payments = sum(payment.amount for payment in lease.payments)
-
-    # Рассчитываем комиссию агента
-    agent_commission = total_payments * lease.agent.commission_rate
-    print(f"Agent commission for lease {lease_id}: {agent_commission}")
-    return agent_commission
+# Получить список всех агентов
+@app.route('/agents', methods=['GET'])
+def get_agents():
+    agents = session.query(Agent).all()
+    return jsonify([{'id': agent.id, 'name': agent.name, 'commission_rate': agent.commission_rate} for agent in
+                    agents])
 
 
-# Пример использования функций
-make_payment(lease1.id, 1000, date(2023, 10, 1))
-complete_lease(lease1.id)
-create_lease_and_make_payment(user1.id, property1.id, date(2023, 12, 1),
-                              date(2024, 11, 30), 1000, date(2023, 12, 1))
-agent_commission = calculate_agent_commission(lease1.id)
+# Добавить нового агента
+@app.route('/agents', methods=['POST'])
+def add_agent():
+    data = request.json
+    new_agent = Agent(name=data['name'], commission_rate=data['commission_rate'])
+    session.add(new_agent)
+    session.commit()
+    return jsonify({'id': new_agent.id, 'name': new_agent.name, 'commission_rate': new_agent.commission_rate}), 201
 
-# Выполняем сложные запросы
-find_users_without_payments()
-find_properties_rented_more_than_3_times()
 
-# Пустая строка в конце файла для соответствия PEP 8
+# Запуск Flask
+if __name__ == '__main__':
+    app.run(debug=True)
