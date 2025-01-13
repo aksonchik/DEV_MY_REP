@@ -122,8 +122,10 @@ session.commit()
 user1 = session.query(User).filter_by(email="john@example.com").first()
 user2 = session.query(User).filter_by(email="jane@example.com").first()
 
-lease1 = Lease(start_date=date(2023, 10, 1), end_date=date(2024, 9, 30), tenant=user1, property=property1)
-lease2 = Lease(start_date=date(2023, 11, 1), end_date=date(2024, 10, 31), tenant=user2, property=property2)
+lease1 = Lease(start_date=date(2023, 10, 1),
+               end_date=date(2024, 9, 30), tenant=user1, property=property1)
+lease2 = Lease(start_date=date(2023, 11, 1),
+               end_date=date(2024, 10, 31), tenant=user2, property=property2)
 session.add_all([lease1, lease2])
 session.commit()
 
