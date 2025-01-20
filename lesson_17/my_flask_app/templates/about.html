@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>О нас</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>О нас</h1>
+        <p>Этот проект представляет собой простое веб-приложение на Flask.</p>
+        <a href="{{ url_for('index') }}" class="button">На главную</a>
+    </div>
+</body>
+</html>
